@@ -37,3 +37,14 @@ This game is developed using HTML5, CSS, and JavaScript with the Phaser 3 game f
 2. Navigate to the project directory
 3. Start a local server (e.g., `python -m http.server` or use Live Server in VS Code)
 4. Open the game in a browser
+
+## Version Control
+
+This project uses Git for version control and is hosted on GitHub. A convenience script is included to simplify the Git workflow:
+
+```bash
+# To update GitHub with your changes:
+./git-update.sh "Your commit message here"
+```
+
+This script will automatically stage, commit, and push your changes to GitHub.

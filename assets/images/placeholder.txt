@@ -1,0 +1,14 @@
+This directory contains placeholder images for the Tightrope Dash game.
+
+Required images:
+- tightrope_walker.png (spritesheet for player animations)
+- obstacle1.png, obstacle2.png, obstacle3.png (obstacles)
+- hat.png, baton.png (collectibles)
+- background.png (game background)
+- rope.png (tightrope texture)
+- balance_meter.png, balance_indicator.png (UI elements)
+- heart.png (lives indicator)
+- title.png (game title)
+- play_button.png (UI button)
+
+For development purposes, you can create simple placeholder images using online tools or graphics software.

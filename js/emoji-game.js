@@ -156,25 +156,25 @@ function gameLoop(timestamp) {
 
 // Update player
 function updatePlayer(deltaTime, timestamp) {
-    // Apply rope wobble effect
+    // Apply rope wobble effect with reduced intensity
     if (!gameState.isJumping) {
         const wobbleSpeed = 0.002 * gameState.gameSpeed;
-        const wobbleAmount = 5 + (gameState.gameSpeed / gameState.maxGameSpeed) * 15;
+        // Reduced wobble amount from 15 to 10 at max speed
+        const wobbleAmount = 5 + (gameState.gameSpeed / gameState.maxGameSpeed) * 10;
         const wobble = Math.sin(timestamp * wobbleSpeed) * wobbleAmount;
         player.style.top = `calc(50% + ${wobble}px)`;
     }
     
-    // Update balance
-    if (gameState.isLeaningLeft || gameState.isLeaningRight) {
-        gameState.balance -= 0.2 * deltaTime / 16;
-        if (gameState.balance <= 0) {
-            gameState.balance = 0;
-            fallOffRope();
-        }
-    } else {
-        // Recover balance when not leaning
-        gameState.balance += 0.05 * deltaTime / 16;
-        gameState.balance = Math.min(gameState.balance, 100);
+    // Balance no longer decreases over time automatically
+    // Only changes when hitting obstacles or collecting items
+    
+    // ONLY fall when balance is exactly 0
+    if (gameState.balance <= 0) {
+        console.log('Balance reached zero, triggering fall.');
+        gameState.balance = 0;
+        updateBalanceBar();
+        void document.body.offsetHeight;
+        fallOffRope();
     }
     
     updateBalanceBar();
@@ -298,12 +298,18 @@ function spawnCollectible() {
 
 // Check for collisions
 function checkCollisions() {
-    // Get player bounds
+    // Skip collision detection if game is not playing
+    if (!gameState.isPlaying) return;
+    
+    // Get player bounds with improved positioning
+    const playerBounds = player.getBoundingClientRect();
+    const gameAreaBounds = gameArea.getBoundingClientRect();
+    
     const playerRect = {
         x: parseInt(player.style.left || 150),
-        y: player.getBoundingClientRect().top - gameArea.getBoundingClientRect().top,
-        width: 48,
-        height: 48
+        y: playerBounds.top - gameAreaBounds.top,
+        width: 40, // Slightly smaller hitbox for more forgiving collisions
+        height: 40
     };
     
     // Check obstacle collisions
@@ -352,6 +358,9 @@ function checkCollision(rect1, rect2) {
 
 // Handle obstacle hit
 function hitObstacle(obstacle, index) {
+    // Skip if game is not playing
+    if (!gameState.isPlaying) return;
+    
     // Remove the obstacle
     obstacle.element.remove();
     gameState.obstacles.splice(index, 1);
@@ -360,14 +369,35 @@ function hitObstacle(obstacle, index) {
     gameState.lives--;
     updateLives();
     
+    // Reduce balance significantly when hitting obstacles
+    gameState.balance -= 40;
+    gameState.balance = Math.max(0, gameState.balance);
+    updateBalanceBar();
+    
     // Flash the player to indicate damage
     player.style.opacity = 0.5;
     setTimeout(() => {
-        player.style.opacity = 1;
+        // Safety check in case player element is gone
+        if (player) player.style.opacity = 1;
     }, 300);
     
-    // Game over if no lives left
+    // Game over if no lives left - but DON'T fall off rope
+    // Instead, just end the game directly
     if (gameState.lives <= 0) {
+        console.log('No lives left, ending game');
+        gameState.isPlaying = false;
+        showGameOver();
+        return; // Exit early to prevent checking balance
+    }
+    
+    // Check if balance is now zero after the hit
+    if (gameState.balance <= 0) {
+        console.log('Balance reached zero after obstacle hit');
+        gameState.balance = 0;
+        updateBalanceBar();
+        // Force a browser repaint
+        void document.body.offsetHeight;
+        // Now fall
         fallOffRope();
     }
 }
@@ -381,8 +411,8 @@ function collectItem(collectible, index) {
     // Show floating score text
     showFloatingText(collectible.x, collectible.y, `+${collectible.value}`);
     
-    // Increase balance slightly
-    gameState.balance += 5;
+    // Increase balance when collecting items (reduced from 15 to 12 to make game harder)
+    gameState.balance += 12;
     gameState.balance = Math.min(gameState.balance, 100);
     updateBalanceBar();
     
@@ -446,26 +476,36 @@ function increaseSpeed() {
 
 // Fall off rope (game over)
 function fallOffRope() {
+    // CRITICAL: Only fall if balance is exactly 0
+    if (gameState.balance > 0) {
+        console.log('Prevented fall: balance is ' + gameState.balance);
+        return;
+    }
+    
+    // Prevent multiple calls
+    if (!gameState.isPlaying) {
+        console.log('Prevented fall: game not playing');
+        return;
+    }
+    
+    console.log('Falling off rope: balance is ' + gameState.balance);
     gameState.isPlaying = false;
     
     // Play fall animation
     player.textContent = emojiAssets.player.fall;
     
     // Animate falling
-    let posY = parseInt(player.style.top) || gameArea.clientHeight / 2;
-    let rotation = 0;
-    
+    let fallDistance = 0;
+    const fallSpeed = 5;
+    const maxJumpHeight = 100;
     const animateFall = () => {
-        posY += 5;
-        rotation += 5;
+        fallDistance += fallSpeed;
+        player.style.top = `calc(50% + ${fallDistance}px)`;
+        player.style.transform = `rotate(${fallDistance}deg)`;
         
-        player.style.top = `${posY}px`;
-        player.style.transform = `rotate(${rotation}deg)`;
-        
-        if (posY < gameArea.clientHeight + 100) {
+        if (fallDistance < 200) {
             requestAnimationFrame(animateFall);
         } else {
-            // Show game over screen
             showGameOver();
         }
     };
@@ -510,15 +550,24 @@ function updateLives() {
 
 // Update balance bar
 function updateBalanceBar() {
-    balanceBar.style.width = `${gameState.balance}%`;
-    
-    // Change color based on balance level
-    if (gameState.balance < 30) {
+    balanceBar.style.width = `${Math.max(0, gameState.balance)}%`;
+    requestAnimationFrame(() => {
+        if (balanceBar) balanceBar.style.width = `${Math.max(0, gameState.balance)}%`;
+    });
+    if (gameState.balance <= 10) {
         balanceBar.style.backgroundColor = '#ff0000'; // Red
+        if (gameState.balance <= 5) {
+            balanceBar.style.opacity = (Math.floor(Date.now() / 200) % 2) ? '1' : '0.5';
+        }
+    } else if (gameState.balance < 30) {
+        balanceBar.style.backgroundColor = '#ff0000'; // Red
+        balanceBar.style.opacity = '1';
     } else if (gameState.balance < 60) {
         balanceBar.style.backgroundColor = '#ffff00'; // Yellow
+        balanceBar.style.opacity = '1';
     } else {
         balanceBar.style.backgroundColor = '#e25822'; // Orange
+        balanceBar.style.opacity = '1';
     }
 }
 
@@ -529,9 +578,8 @@ function jump() {
     gameState.isJumping = true;
     player.textContent = emojiAssets.player.jump;
     
-    // Reduce balance when jumping
-    gameState.balance -= 5;
-    gameState.balance = Math.max(0, gameState.balance);
+    // Jumping no longer affects balance
+    // gameState.balance remains unchanged
     updateBalanceBar();
     
     // Jump animation
@@ -571,9 +619,8 @@ function duck() {
     gameState.isDucking = true;
     player.textContent = emojiAssets.player.duck;
     
-    // Reduce balance when ducking
-    gameState.balance -= 5;
-    gameState.balance = Math.max(0, gameState.balance);
+    // Ducking no longer affects balance
+    // gameState.balance remains unchanged
     updateBalanceBar();
     
     // Duck animation - scale player down
@@ -624,6 +671,7 @@ function stopLeaning() {
 function setupControls() {
     // Keyboard controls
     document.addEventListener('keydown', (event) => {
+        console.log('Key pressed: ' + event.key);  // Added debugging for jump functionality issue
         if (!gameState.isPlaying) return;
         
         switch (event.key) {

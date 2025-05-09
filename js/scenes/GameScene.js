@@ -11,7 +11,7 @@ class GameScene extends Phaser.Scene {
         this.maxGameSpeed = 600;
         this.speedIncreaseInterval = 10000; // 10 seconds
         this.lastSpeedIncrease = 0;
-        this.balance = 100; // 0-100 balance meter
+        this.balance = 100; // 0-100 balance meter (only changes on events, not over time)
         this.isGameOver = false;
         
         // Track player state
@@ -120,17 +120,10 @@ class GameScene extends Phaser.Scene {
             this.lastSpeedIncrease = time;
         }
         
-        // Update balance meter if leaning
-        if (this.isLeaning) {
-            this.balance -= 0.2 * delta / 16; // Decrease balance while leaning
-            if (this.balance <= 0) {
-                this.balance = 0;
-                this.fallOffRope();
-            }
-        } else {
-            // Slowly recover balance when not leaning
-            this.balance += 0.05 * delta / 16;
-            this.balance = Math.min(this.balance, 100);
+        // Check if balance is too low
+        if (this.balance <= 0) {
+            this.balance = 0;
+            this.fallOffRope();
         }
         
         // Update balance meter UI
@@ -188,7 +181,7 @@ class GameScene extends Phaser.Scene {
             'Balance',
             {
                 font: '16px Arial',
-                fill: '#e25822'
+                fill: '#ffffff'
             }
         ).setOrigin(0.5);
     }
@@ -203,7 +196,7 @@ class GameScene extends Phaser.Scene {
         } else if (this.balance < 60) {
             this.balanceMeterFill.fillColor = 0xffff00; // Yellow
         } else {
-            this.balanceMeterFill.fillColor = 0xe25822; // Orange
+            this.balanceMeterFill.fillColor = 0x00ff00; // Green
         }
     }
     
@@ -326,9 +319,7 @@ class GameScene extends Phaser.Scene {
         this.player.play('jump');
         this.jumpSound.play();
         
-        // Reduce balance when jumping
-        this.balance -= 5;
-        this.balance = Math.max(0, this.balance);
+        // No balance reduction for jumping
         
         // Jump animation
         this.tweens.add({
@@ -352,9 +343,7 @@ class GameScene extends Phaser.Scene {
         this.isDucking = true;
         this.player.play('duck');
         
-        // Reduce balance when ducking
-        this.balance -= 5;
-        this.balance = Math.max(0, this.balance);
+        // No balance reduction for ducking
         
         // Duck animation - scale player down
         this.tweens.add({
@@ -440,6 +429,13 @@ class GameScene extends Phaser.Scene {
             // Remove the obstacle
             obstacle.destroy();
             
+            // Reduce balance when hitting obstacles
+            this.balance -= 25;
+            if (this.balance < 0) this.balance = 0;
+            
+            // Show floating balance text
+            this.showFloatingText(obstacle.x, obstacle.y - 30, `-25 Balance`, 0xff0000);
+            
             // Reduce lives
             this.lives--;
             
@@ -476,9 +472,12 @@ class GameScene extends Phaser.Scene {
         // Show floating score text
         this.showFloatingText(collectible.x, collectible.y, `+${value}`, 0x00ff00);
         
-        // Increase balance slightly
-        this.balance += 5;
-        this.balance = Math.min(this.balance, 100);
+        // Increase balance slightly when collecting items
+        this.balance += 10;
+        if (this.balance > 100) this.balance = 100;
+        
+        // Show floating balance text
+        this.showFloatingText(collectible.x, collectible.y - 30, `+10 Balance`, 0x00ff00);
         
         // Remove the collectible
         collectible.destroy();

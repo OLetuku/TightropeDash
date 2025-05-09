@@ -26,9 +26,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         this.isJumping = true;
         this.play('jump');
         
-        // Reduce balance when jumping
-        this.balance -= 5;
-        this.balance = Math.max(0, this.balance);
+        // No balance reduction for jumping
         
         // Jump animation
         this.scene.tweens.add({
@@ -54,9 +52,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         this.isDucking = true;
         this.play('duck');
         
-        // Reduce balance when ducking
-        this.balance -= 5;
-        this.balance = Math.max(0, this.balance);
+        // No balance reduction for ducking
         
         // Duck animation - scale player down
         this.scene.tweens.add({
@@ -119,17 +115,10 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     }
     
     updateBalance(delta) {
-        // Decrease balance when leaning
-        if (this.isLeaning) {
-            this.balance -= 0.2 * delta / 16;
-            if (this.balance <= 0) {
-                this.balance = 0;
-                return false; // Indicates fall
-            }
-        } else {
-            // Slowly recover balance when not leaning
-            this.balance += 0.05 * delta / 16;
-            this.balance = Math.min(this.balance, 100);
+        // Only check if balance is too low, no automatic changes
+        if (this.balance <= 0) {
+            this.balance = 0;
+            return false; // Indicates fall
         }
         
         return true; // Still balanced

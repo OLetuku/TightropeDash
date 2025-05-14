@@ -370,7 +370,7 @@ function hitObstacle(obstacle, index) {
     updateLives();
     
     // Reduce balance significantly when hitting obstacles
-    gameState.balance -= 40;
+    gameState.balance -= 13; // Reduced from 40 to make game last 3 times longer
     gameState.balance = Math.max(0, gameState.balance);
     updateBalanceBar();
     
@@ -411,8 +411,8 @@ function collectItem(collectible, index) {
     // Show floating score text
     showFloatingText(collectible.x, collectible.y, `+${collectible.value}`);
     
-    // Increase balance when collecting items (reduced from 15 to 12 to make game harder)
-    gameState.balance += 12;
+    // Increase balance when collecting items
+    gameState.balance += 36; // Increased from 12 to make game last 3 times longer
     gameState.balance = Math.min(gameState.balance, 100);
     updateBalanceBar();
     
